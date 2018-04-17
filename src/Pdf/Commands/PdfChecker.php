@@ -8,10 +8,9 @@ use Illuminate\Support\Str;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Process\Process;
-use Sztyup\Pdf\Compatibility\Checker;
-use Sztyup\Pdf\Compatibility\Converter;
+use Sztyup\Pdf\Compatibility;
 
-class PDFChecker extends Command
+class PdfChecker extends Command
 {
     /**
      * The name and signature of the console command.
@@ -47,12 +46,11 @@ class PDFChecker extends Command
     }
 
     /**
-     * @param Converter $converter
-     * @param Checker $guesser
+     * @param Compatibility $compatibility
      * @param Filesystem $fs
      * @throws \Exception
      */
-    public function handle(Converter $converter, Checker $guesser, Filesystem $fs)
+    public function handle(Compatibility $compatibility, Filesystem $fs)
     {
         if (!$this->checkGsInstall()) {
             $this->error('Ghostscript is not installed. Aborting');
@@ -62,10 +60,10 @@ class PDFChecker extends Command
         $this->info('Checking files');
         $path = $this->argument('path');
 
-        $files = $this->collectConvertable($fs->allFiles($path), $guesser);
+        $files = $this->collectConvertable($fs->allFiles($path), $compatibility);
 
         if (!$this->option('check-only')) {
-            $this->convert($converter, $files);
+            $this->convert($compatibility, $files);
         }
     }
 
@@ -89,7 +87,7 @@ class PDFChecker extends Command
         }
     }
 
-    protected function collectConvertable(array $files, Checker $checker)
+    protected function collectConvertable(array $files, Compatibility $checker)
     {
         $bar = $this->output->createProgressBar(count($files));
 
@@ -115,11 +113,11 @@ class PDFChecker extends Command
     }
 
     /**
-     * @param Converter $converter
+     * @param Compatibility $converter
      * @param $files
      * @throws \Exception
      */
-    protected function convert(Converter $converter, $files)
+    protected function convert(Compatibility $converter, $files)
     {
         $this->info('Converting files');
 
