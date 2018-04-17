@@ -65,7 +65,6 @@ class PDFChecker extends Command
         $files = $this->collectConvertable($fs->allFiles($path), $guesser);
 
         if (!$this->option('check-only')) {
-            $this->checkGsInstall();
             $this->convert($converter, $files);
         }
     }
