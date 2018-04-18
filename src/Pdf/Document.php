@@ -65,11 +65,14 @@ class Document
         $this->pdf->setPDFVersion();
 
         $this->pdf->SetTitle($this->config['defaults']['title']);
+        $this->pdf->SetAuthor($this->config['defaults']['author']);
+        $this->pdf->SetCreator($this->config['defaults']['creator']);
+        $this->pdf->SetSubject($this->config['defaults']['subject']);
     }
 
-    public function setMetadata($author)
+    public function getUnderlyingPdf()
     {
-        $this->pdf->SetAuthor($author);
+        return $this->pdf;
     }
 
     /**
@@ -90,7 +93,7 @@ class Document
             $this->pdf->useTemplate($this->pdf->importPage($i));
 
             if (is_callable($callback)) {
-                $this->pdf = $callback($this->pdf, $i, $pageCount);
+                $this->pdf = $callback($this->getUnderlyingPdf(), $i, $pageCount);
             }
         }
     }
@@ -119,7 +122,7 @@ class Document
 
     public function output()
     {
-        return $this->pdf->Output('', 'S');
+        return $this->getUnderlyingPdf()->Output('', 'S');
     }
 
     /**
