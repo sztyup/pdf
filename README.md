@@ -5,7 +5,7 @@
 [![Latest Stable Version](https://poser.pugx.org/sztyup/pdf/v/stable)](https://packagist.org/packages/sztyup/pdf)
 [![License](https://poser.pugx.org/sztyup/pdf/license)](https://packagist.org/packages/sztyup/pdf)
 
-PDF importing and exporting made easier using tcpdi/tcpdf and dompdf
+PDF importing and exporting made easier using fpdi/tcpdf and dompdf
 
 ### Installation
 
