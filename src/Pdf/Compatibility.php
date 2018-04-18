@@ -4,6 +4,7 @@ namespace Sztyup\Pdf;
 
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Str;
+use setasign\Fpdi\PdfParser\StreamReader;
 use Symfony\Component\Process\Process;
 
 class Compatibility
@@ -26,6 +27,7 @@ class Compatibility
         'AutoFilterGrayImages' => 'false',
         'ColorImageFilter' => '/FlateEncode',
         'GrayImageFilter' => '/FlateEncode',
+        'CompatibilityLevel' => '1.4'
     ];
 
     const MAXIMUM_COMPATIBLE_PDF_VERSION = 14;
@@ -35,7 +37,7 @@ class Compatibility
         $this->filesystem = $filesystem;
     }
 
-    protected function generateCommand($inputFile, $outputFile, $version = 1.4)
+    protected function generateCommand($inputFile, $outputFile)
     {
         $options = '';
         foreach (self::CONVERTER_OPTIONS as $key => $value) {
@@ -46,15 +48,42 @@ class Compatibility
             }
         }
 
-        return "gs -sDEVICE=pdfwrite $options -dCompatibilityLevel=$version -sOutputFile=$outputFile $inputFile";
+        return "gs -sDEVICE=pdfwrite $options -sOutputFile=$outputFile $inputFile";
     }
 
-    public function convert($file, $version = 1.4)
+    /**
+     * @return bool
+     */
+    public function converterAvailable()
     {
+        $command = new Process('gs --version');
+
+        try {
+            $command->run();
+        } catch (\Exception $exception) {
+            return false;
+        }
+
+        if ($command->isSuccessful()) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * @param $file
+     */
+    public function convert($file)
+    {
+        if (!$this->converterAvailable()) {
+            throw new \RuntimeException('Ghostscript is not installed.');
+        }
+
         $temporaryFile = sys_get_temp_dir() . '/pdf/' . Str::random(20);
 
         $process = new Process(
-            $this->generateCommand($file, $temporaryFile, $version)
+            $this->generateCommand($file, $temporaryFile)
         );
 
         $process->run();
@@ -84,17 +113,11 @@ class Compatibility
             throw new \InvalidArgumentException("File does not exists ($file)");
         }
 
-        $fp = @fopen($file, 'rb');
+        $stream = StreamReader::createByFile($file);
 
-        if (!$fp) {
-            throw new \InvalidArgumentException("Cant read file ($file)");
-        }
+        preg_match('/%PDF-(\d\.\d)/', $stream->readBytes(1024), $match);
 
-        fseek($fp, 0);
-
-        preg_match('/%PDF-(\d\.\d)/', fread($fp, 1024), $match);
-
-        fclose($fp);
+        unset($stream);
 
         $version = floatval($match[1]);
 
@@ -105,6 +128,10 @@ class Compatibility
         throw new \LogicException("Unrecognised version number ($match[1])");
     }
 
+    /**
+     * @param $file
+     * @return bool
+     */
     public function check($file)
     {
         return $this->getVersion($file) <= self::MAXIMUM_COMPATIBLE_PDF_VERSION;

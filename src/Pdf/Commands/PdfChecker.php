@@ -7,7 +7,6 @@ use Illuminate\Support\Str;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Finder\Finder;
-use Symfony\Component\Process\Process;
 use Sztyup\Pdf\Compatibility;
 
 class PdfChecker extends Command
@@ -51,17 +50,17 @@ class PdfChecker extends Command
      */
     public function handle(Compatibility $compatibility)
     {
-        if (!$this->checkGsInstall()) {
-            $this->error('Ghostscript is not installed. Aborting');
-            return;
-        }
-
         $this->info('Checking files');
         $path = $this->argument('path');
 
         $files = $this->collectConvertable($this->getFiles($path), $compatibility);
 
         if (!$this->option('check-only')) {
+            if (!$compatibility->converterAvailable()) {
+                $this->error('Ghostscript is not installed. Aborting');
+                return;
+            }
+
             $this->convert($compatibility, $files);
         }
     }
@@ -76,26 +75,6 @@ class PdfChecker extends Command
             Finder::create()->name('*.pdf')->files()->in($directory)->sortByName(),
             false
         );
-    }
-
-    /**
-     * @return bool
-     */
-    protected function checkGsInstall()
-    {
-        $command = new Process('gs --version');
-
-        try {
-            $command->run();
-        } catch (\Exception $exception) {
-            return false;
-        }
-
-        if ($command->isSuccessful()) {
-            return true;
-        } else {
-            return false;
-        }
     }
 
     protected function collectConvertable(array $files, Compatibility $checker)
@@ -136,7 +115,7 @@ class PdfChecker extends Command
 
         foreach ($files as $file) {
             try {
-                $converter->convert($file, '1.4');
+                $converter->convert($file);
             } catch (\Exception $exception) {
                 $this->error("\nGhostScript cant convert pdf files, make sure GhostScript is installed and you have
                                 permission to write files in the storage folder");
