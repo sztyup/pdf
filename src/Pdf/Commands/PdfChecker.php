@@ -3,10 +3,10 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Str;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Finder\Finder;
 use Symfony\Component\Process\Process;
 use Sztyup\Pdf\Compatibility;
 
@@ -24,7 +24,7 @@ class PdfChecker extends Command
      *
      * @var string
      */
-    protected $description = 'Check all uploaded CV pdf to confrom to version requirement set by TCPDF';
+    protected $description = 'Check all pdf file to confrom to version requirement set by TCPDF';
 
     protected function getArguments()
     {
@@ -47,10 +47,9 @@ class PdfChecker extends Command
 
     /**
      * @param Compatibility $compatibility
-     * @param Filesystem $fs
      * @throws \Exception
      */
-    public function handle(Compatibility $compatibility, Filesystem $fs)
+    public function handle(Compatibility $compatibility)
     {
         if (!$this->checkGsInstall()) {
             $this->error('Ghostscript is not installed. Aborting');
@@ -60,11 +59,23 @@ class PdfChecker extends Command
         $this->info('Checking files');
         $path = $this->argument('path');
 
-        $files = $this->collectConvertable($fs->allFiles($path), $compatibility);
+        $files = $this->collectConvertable($this->getFiles($path), $compatibility);
 
         if (!$this->option('check-only')) {
             $this->convert($compatibility, $files);
         }
+    }
+
+    /**
+     * @param $directory
+     * @return array
+     */
+    protected function getFiles($directory)
+    {
+        return iterator_to_array(
+            Finder::create()->name('*.pdf')->files()->in($directory)->sortByName(),
+            false
+        );
     }
 
     /**
@@ -98,7 +109,7 @@ class PdfChecker extends Command
                 continue;
             }
 
-            if ($checker->check($file) > 1.4) {
+            if ($checker->check($file) === false) {
                 $convertable[] = $file;
             }
 
